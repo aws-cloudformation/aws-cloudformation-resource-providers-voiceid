@@ -1,0 +1,182 @@
+{
+  "typeName": "AWS::VoiceID::Domain",
+  "description": "Definition of AWS::VoiceID::Domain Resource Type",
+  "definitions": {
+    "Domain": {
+      "type": "object",
+      "properties": {
+        "DomainId": {
+          "type": "string",
+          "maxLength": 22,
+          "minLength": 22,
+          "pattern": "^[a-zA-Z0-9]{22}$"
+        },
+        "Arn": {
+          "type": "string",
+          "pattern": "^arn:aws(-[^:]+)?:voiceid.+:[0-9]{12}:domain/[a-zA-Z0-9]{22}$"
+        },
+        "Name": {
+          "type": "string",
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
+        },
+        "Description": {
+          "type": "string",
+          "maxLength": 1024,
+          "minLength": 1,
+          "pattern": "^([a-zA-Z0-9\\s_.:/=+\\-%@]*)$"
+        },
+        "DomainStatus": {
+          "$ref": "#/definitions/DomainStatus"
+        },
+        "ServerSideEncryptionConfiguration": {
+          "$ref": "#/definitions/ServerSideEncryptionConfiguration"
+        },
+        "CreatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "UpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false
+    },
+    "DomainStatus": {
+      "type": "string",
+      "enum": [
+        "ACTIVE",
+        "PENDING",
+        "SUSPENDED"
+      ]
+    },
+    "ServerSideEncryptionConfiguration": {
+      "type": "object",
+      "properties": {
+        "KmsKeyId": {
+          "type": "string",
+          "maxLength": 2048,
+          "minLength": 1
+        }
+      },
+      "required": [
+        "KmsKeyId"
+      ],
+      "additionalProperties": false
+    },
+    "Tag": {
+      "type": "object",
+      "properties": {
+        "Key": {
+          "type": "string",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^([a-zA-Z0-9\\s_.:/=+\\-@]*)$"
+        },
+        "Value": {
+          "type": "string",
+          "maxLength": 256,
+          "minLength": 0,
+          "pattern": "^([a-zA-Z0-9\\s_.:/=+\\-@]*)$"
+        }
+      },
+      "required": [
+        "Key",
+        "Value"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "ClientToken": {
+      "type": "string",
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9-_]+$"
+    },
+    "Description": {
+      "type": "string",
+      "maxLength": 1024,
+      "minLength": 1,
+      "pattern": "^([a-zA-Z0-9\\s_.:/=+\\-%@]*)$"
+    },
+    "Domain": {
+      "$ref": "#/definitions/Domain"
+    },
+    "DomainId": {
+      "type": "string",
+      "maxLength": 22,
+      "minLength": 22,
+      "pattern": "^[a-zA-Z0-9]{22}$"
+    },
+    "Name": {
+      "type": "string",
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
+    },
+    "ServerSideEncryptionConfiguration": {
+      "$ref": "#/definitions/ServerSideEncryptionConfiguration"
+    },
+    "Tags": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Tag"
+      },
+      "maxItems": 200,
+      "minItems": 0
+    }
+  },
+  "required": [
+    "Name",
+    "ServerSideEncryptionConfiguration"
+  ],
+  "readOnlyProperties": [
+    "/properties/Domain",
+    "/properties/DomainId"
+  ],
+  "writeOnlyProperties": [
+    "/properties/ClientToken",
+    "/properties/Description",
+    "/properties/Name",
+    "/properties/ServerSideEncryptionConfiguration",
+    "/properties/Tags"
+  ],
+  "createOnlyProperties": [
+    "/properties/ClientToken",
+    "/properties/Tags"
+  ],
+  "primaryIdentifier": [
+    "/properties/DomainId"
+  ],
+  "handlers": {
+    "create": {
+      "permissions": [
+        "voiceid:CreateDomain"
+      ]
+    },
+    "read": {
+      "permissions": [
+        "voiceid:DescribeDomain"
+      ]
+    },
+    "update": {
+      "permissions": [
+        "voiceid:UpdateDomain"
+      ]
+    },
+    "delete": {
+      "permissions": [
+        "voiceid:DeleteDomain"
+      ]
+    },
+    "list": {
+      "permissions": [
+        "voiceid:ListDomains"
+      ]
+    }
+  },
+  "additionalProperties": false
+}
