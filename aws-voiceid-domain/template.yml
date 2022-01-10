@@ -21,4 +21,3 @@ Resources:
       Handler: software.amazon.voiceid.domain.HandlerWrapper::testEntrypoint
       Runtime: java8
       CodeUri: ./target/aws-voiceid-domain-handler-1.0-SNAPSHOT.jar
-
