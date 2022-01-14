@@ -1,40 +1,35 @@
 {
   "typeName": "AWS::VoiceID::Domain",
-  "description": "An example resource schema demonstrating some basic constructs and validation rules.",
-  "sourceUrl": "https://github.com/aws-cloudformation/aws-cloudformation-rpdk.git",
+  "description": "The AWS::VoiceID::Domain resource specifies an Amazon VoiceID Domain.",
   "definitions": {
-    "InitechDateFormat": {
-      "$comment": "Use the `definitions` block to provide shared resource property schemas",
-      "type": "string",
-      "format": "date-time"
-    },
-    "Memo": {
+    "ServerSideEncryptionConfiguration": {
       "type": "object",
       "properties": {
-        "Heading": {
-          "type": "string"
-        },
-        "Body": {
-          "type": "string"
+        "KmsKeyId": {
+          "type": "string",
+          "maxLength": 2048,
+          "minLength": 1
         }
       },
+      "required": [
+        "KmsKeyId"
+      ],
       "additionalProperties": false
     },
     "Tag": {
-      "description": "A key-value pair to associate with a resource.",
       "type": "object",
       "properties": {
         "Key": {
           "type": "string",
-          "description": "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _, ., /, =, +, and -.",
+          "maxLength": 128,
           "minLength": 1,
-          "maxLength": 128
+          "pattern": "^([\\p{L}\\p{Z}\\p{N}_.:/=+\\-@]*)$"
         },
         "Value": {
           "type": "string",
-          "description": "The value for the tag. You can specify a value that is 0 to 256 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _, ., /, =, +, and -.",
+          "maxLength": 256,
           "minLength": 0,
-          "maxLength": 256
+          "pattern": "^([\\p{L}\\p{Z}\\p{N}_.:/=+\\-@]*)$"
         }
       },
       "required": [
@@ -45,93 +40,77 @@
     }
   },
   "properties": {
-    "TPSCode": {
-      "description": "A TPS Code is automatically generated on creation and assigned as the unique identifier.",
+    "Description": {
       "type": "string",
-      "pattern": "^[A-Z]{3,5}[0-9]{8}-[0-9]{4}$"
+      "maxLength": 1024,
+      "minLength": 1,
+      "pattern": "^([\\p{L}\\p{Z}\\p{N}_.:/=+\\-%@]*)$"
     },
-    "Title": {
-      "description": "The title of the TPS report is a mandatory element.",
+    "DomainId": {
       "type": "string",
-      "minLength": 20,
-      "maxLength": 250
+      "maxLength": 22,
+      "minLength": 22,
+      "pattern": "^[a-zA-Z0-9]{22}$"
     },
-    "CoverSheetIncluded": {
-      "description": "Required for all TPS Reports submitted after 2/19/1999",
-      "type": "boolean"
-    },
-    "DueDate": {
-      "$ref": "#/definitions/InitechDateFormat"
-    },
-    "ApprovalDate": {
-      "$ref": "#/definitions/InitechDateFormat"
-    },
-    "Memo": {
-      "$ref": "#/definitions/Memo"
-    },
-    "SecondCopyOfMemo": {
-      "description": "In case you didn't get the first one.",
-      "$ref": "#/definitions/Memo"
-    },
-    "TestCode": {
+    "Name": {
       "type": "string",
-      "enum": [
-        "NOT_STARTED",
-        "CANCELLED"
-      ]
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
     },
-    "Authors": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
+    "ServerSideEncryptionConfiguration": {
+      "$ref": "#/definitions/ServerSideEncryptionConfiguration"
     },
     "Tags": {
-      "description": "An array of key-value pairs to apply to this resource.",
       "type": "array",
-      "uniqueItems": true,
-      "insertionOrder": false,
       "items": {
         "$ref": "#/definitions/Tag"
-      }
+      },
+      "maxItems": 200,
+      "minItems": 0
     }
   },
-  "additionalProperties": false,
   "required": [
-    "TestCode",
-    "Title"
+    "Name",
+    "ServerSideEncryptionConfiguration"
   ],
   "readOnlyProperties": [
-    "/properties/TPSCode"
+    "/properties/DomainId"
+  ],
+  "writeOnlyProperties": [
+    "/properties/Description",
+    "/properties/Name",
+    "/properties/ServerSideEncryptionConfiguration"
   ],
   "primaryIdentifier": [
-    "/properties/TPSCode"
+    "/properties/DomainId"
   ],
   "handlers": {
     "create": {
       "permissions": [
-        "initech:CreateReport"
+        "voiceid:CreateDomain"
       ]
     },
     "read": {
       "permissions": [
-        "initech:DescribeReport"
+        "voiceid:DescribeDomain"
       ]
     },
     "update": {
       "permissions": [
-        "initech:UpdateReport"
+        "voiceid:UpdateDomain"
       ]
     },
     "delete": {
       "permissions": [
-        "initech:DeleteReport"
+        "voiceid:DeleteDomain"
       ]
     },
     "list": {
       "permissions": [
-        "initech:ListReports"
+        "voiceid:ListDomains"
       ]
     }
-  }
+  },
+  "additionalProperties": false
 }
