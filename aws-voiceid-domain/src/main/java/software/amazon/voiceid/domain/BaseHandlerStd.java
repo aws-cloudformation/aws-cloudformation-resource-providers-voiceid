@@ -1,6 +1,6 @@
 package software.amazon.voiceid.domain;
 
-import software.amazon.awssdk.core.SdkClient;
+import software.amazon.awssdk.services.voiceid.VoiceIdClient;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.ProgressEvent;
@@ -26,9 +26,9 @@ public abstract class BaseHandlerStd extends BaseHandler<CallbackContext> {
   }
 
   protected abstract ProgressEvent<ResourceModel, CallbackContext> handleRequest(
-    final AmazonWebServicesClientProxy proxy,
-    final ResourceHandlerRequest<ResourceModel> request,
-    final CallbackContext callbackContext,
-    final ProxyClient<SdkClient> proxyClient,
-    final Logger logger);
+      final AmazonWebServicesClientProxy proxy,
+      final ResourceHandlerRequest<ResourceModel> request,
+      final CallbackContext callbackContext,
+      final ProxyClient<VoiceIdClient> proxyClient,
+      final Logger logger);
 }
