@@ -8,8 +8,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.voiceid.VoiceIdClient;
 import software.amazon.awssdk.services.voiceid.model.DescribeDomainRequest;
-import software.amazon.awssdk.services.voiceid.model.DescribeDomainResponse;
-import software.amazon.awssdk.services.voiceid.model.Domain;
+import software.amazon.awssdk.services.voiceid.model.ResourceNotFoundException;
+import software.amazon.awssdk.services.voiceid.model.ValidationException;
+import software.amazon.awssdk.services.voiceid.model.VoiceIdException;
+import software.amazon.cloudformation.exceptions.CfnGeneralServiceException;
+import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
+import software.amazon.cloudformation.exceptions.CfnNotFoundException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
@@ -19,6 +23,7 @@ import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
@@ -36,6 +41,8 @@ public class ReadHandlerTest extends AbstractTestBase {
 
     @Mock VoiceIdClient voiceIdClient;
 
+    private ReadHandler handler = new ReadHandler();
+
     @BeforeEach
     public void setup() {
         proxy = new AmazonWebServicesClientProxy(logger, MOCK_CREDENTIALS, () -> Duration.ofSeconds(600).toMillis());
@@ -51,21 +58,10 @@ public class ReadHandlerTest extends AbstractTestBase {
 
     @Test
     public void handleRequest_SimpleSuccess() {
-        final ReadHandler handler = new ReadHandler();
-
-        final ResourceModel model = ResourceModel.builder().domainId("Domain").serverSideEncryptionConfiguration(
-            ServerSideEncryptionConfiguration.builder().build()).build();
+        final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
 
         when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
-            .thenReturn(DescribeDomainResponse.builder()
-                            .domain(Domain.builder().domainId("Domain").serverSideEncryptionConfiguration(
-                                software.amazon.awssdk.services.voiceid.model.ServerSideEncryptionConfiguration.builder()
-                                    .build()).build())
-                            .build());
-
-        final ResourceHandlerRequest<ResourceModel>
-            request =
-            ResourceHandlerRequest.<ResourceModel>builder().desiredResourceState(model).build();
+            .thenReturn(TestDataProvider.describeDomainResponse());
 
         final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy,
                                                                                              request,
@@ -73,6 +69,7 @@ public class ReadHandlerTest extends AbstractTestBase {
                                                                                              proxyClient,
                                                                                              logger);
 
+        verify(proxyClient.client()).describeDomain(any(DescribeDomainRequest.class));
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
         assertThat(response.getCallbackDelaySeconds()).isEqualTo(0);
@@ -80,5 +77,41 @@ public class ReadHandlerTest extends AbstractTestBase {
         assertThat(response.getResourceModels()).isNull();
         assertThat(response.getMessage()).isNull();
         assertThat(response.getErrorCode()).isNull();
+    }
+
+    @Test
+    public void handleRequest_NotFound() {
+        final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
+
+        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
+            .thenThrow(ResourceNotFoundException.class);
+
+        assertThrows(CfnNotFoundException.class,
+                     () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger));
+        verify(proxyClient.client()).describeDomain(any(DescribeDomainRequest.class));
+    }
+
+    @Test
+    public void handleRequest_Invalid() {
+        final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
+
+        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
+            .thenThrow(ValidationException.class);
+
+        assertThrows(CfnInvalidRequestException.class,
+                     () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger));
+        verify(proxyClient.client()).describeDomain(any(DescribeDomainRequest.class));
+    }
+
+    @Test
+    public void handleRequest_Exception() {
+        final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
+
+        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
+            .thenThrow(VoiceIdException.class);
+
+        assertThrows(CfnGeneralServiceException.class,
+                     () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger));
+        verify(proxyClient.client()).describeDomain(any(DescribeDomainRequest.class));
     }
 }

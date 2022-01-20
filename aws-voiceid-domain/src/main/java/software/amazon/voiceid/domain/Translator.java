@@ -8,14 +8,16 @@ import software.amazon.awssdk.services.voiceid.model.AccessDeniedException;
 import software.amazon.awssdk.services.voiceid.model.ConflictException;
 import software.amazon.awssdk.services.voiceid.model.DescribeDomainRequest;
 import software.amazon.awssdk.services.voiceid.model.DescribeDomainResponse;
+import software.amazon.awssdk.services.voiceid.model.Domain;
 import software.amazon.awssdk.services.voiceid.model.ResourceNotFoundException;
 import software.amazon.awssdk.services.voiceid.model.ServiceQuotaExceededException;
 import software.amazon.awssdk.services.voiceid.model.ThrottlingException;
+import software.amazon.awssdk.services.voiceid.model.ValidationException;
 import software.amazon.awssdk.services.voiceid.model.VoiceIdException;
 import software.amazon.cloudformation.exceptions.BaseHandlerException;
 import software.amazon.cloudformation.exceptions.CfnAccessDeniedException;
 import software.amazon.cloudformation.exceptions.CfnGeneralServiceException;
-import software.amazon.cloudformation.exceptions.CfnInternalFailureException;
+import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
 import software.amazon.cloudformation.exceptions.CfnNotFoundException;
 import software.amazon.cloudformation.exceptions.CfnResourceConflictException;
 import software.amazon.cloudformation.exceptions.CfnServiceLimitExceededException;
@@ -53,32 +55,31 @@ public class Translator {
     }
 
     /**
-     * Request to read a resource
+     * Request to read a domain
      *
      * @param model resource model
      *
-     * @return awsRequest the aws service request to describe a resource
+     * @return awsRequest the voiceid service request to describe a domain
      */
     static DescribeDomainRequest translateToReadRequest(final ResourceModel model) {
         return DescribeDomainRequest.builder().domainId(model.getDomainId()).build();
     }
 
     /**
-     * Translates resource object from sdk into a resource model
+     * Translates domain object from sdk into a resource model
      *
      * @param awsResponse the voiceid service describe domain response
      *
      * @return model resource model
      */
     static ResourceModel translateFromReadResponse(final DescribeDomainResponse awsResponse) {
+        final Domain domain = awsResponse.domain();
         return ResourceModel.builder()
-            .description(awsResponse.domain().description())
-            .domainId(awsResponse.domain().domainId())
-            .name(awsResponse.domain().name())
+            .description(domain.description())
+            .domainId(domain.domainId())
+            .name(domain.name())
             .serverSideEncryptionConfiguration(software.amazon.voiceid.domain.ServerSideEncryptionConfiguration.builder()
-                                                   .kmsKeyId(awsResponse.domain()
-                                                                 .serverSideEncryptionConfiguration()
-                                                                 .kmsKeyId())
+                                                   .kmsKeyId(domain.serverSideEncryptionConfiguration().kmsKeyId())
                                                    .build())
             .build();
     }
@@ -188,23 +189,32 @@ public class Translator {
         return awsRequest;
     }
 
-    static void translateToCfnException(final AwsServiceException awsException) {
-        final BaseHandlerException exception;
+    /**
+     * Translates voice id exception to corresponding cfn exception
+     * The handler contract states that the handler must always return a progress event,
+     * but any instance of BaseHandlerException may be thrown as the wrapper maps it to a progress event.
+     *
+     * @param awsException exception
+     *
+     * @return the cfn exception most closely mapped from the service exception
+     */
+    static BaseHandlerException translateToCfnException(final AwsServiceException awsException) {
         if (awsException instanceof AccessDeniedException) {
-            exception = new CfnAccessDeniedException(awsException);
+            return new CfnAccessDeniedException(awsException);
         } else if (awsException instanceof ConflictException) {
-            exception = new CfnResourceConflictException(awsException);
+            return new CfnResourceConflictException(awsException);
         } else if (awsException instanceof ResourceNotFoundException) {
-            exception = new CfnNotFoundException(awsException);
+            return new CfnNotFoundException(awsException);
         } else if (awsException instanceof ServiceQuotaExceededException) {
-            exception = new CfnServiceLimitExceededException(awsException);
+            return new CfnServiceLimitExceededException(awsException);
         } else if (awsException instanceof ThrottlingException) {
-            exception = new CfnThrottlingException(awsException);
+            return new CfnThrottlingException(awsException);
+        } else if (awsException instanceof ValidationException) {
+            return new CfnInvalidRequestException(awsException);
         } else if (awsException instanceof VoiceIdException) {
-            exception = new CfnGeneralServiceException(awsException);
+            return new CfnGeneralServiceException(awsException);
         } else {
-            exception = new CfnInternalFailureException(awsException);
+            return new CfnGeneralServiceException(awsException);
         }
-        throw exception;
     }
 }
