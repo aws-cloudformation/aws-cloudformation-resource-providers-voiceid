@@ -4,9 +4,6 @@ import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.voiceid.VoiceIdClient;
 import software.amazon.awssdk.services.voiceid.model.CreateDomainRequest;
 import software.amazon.awssdk.services.voiceid.model.CreateDomainResponse;
-import software.amazon.awssdk.services.voiceid.model.DescribeDomainRequest;
-import software.amazon.awssdk.services.voiceid.model.DescribeDomainResponse;
-import software.amazon.awssdk.services.voiceid.model.DomainStatus;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.ProgressEvent;
@@ -33,7 +30,6 @@ public class CreateHandler extends BaseHandlerStd {
                                      progress.getCallbackContext())
                           .translateToServiceRequest(Translator::translateToCreateRequest)
                           .makeServiceCall((awsRequest, client) -> createDomain(awsRequest, client, request))
-                          .stabilize((awsRequest, awsResponse, client, model, context) -> isStabilized(client, model))
                           .progress()
                  )
             .then(progress -> new ReadHandler().handleRequest(proxy, request, callbackContext, proxyClient, logger));
@@ -54,23 +50,5 @@ public class CreateHandler extends BaseHandlerStd {
         // Setting the DomainId since it is service generated and is required for the subsequent ReadHandler request
         request.getDesiredResourceState().setDomainId(awsResponse.domain().domainId());
         return awsResponse;
-    }
-
-    private Boolean isStabilized(
-        final ProxyClient<VoiceIdClient> client,
-        final ResourceModel model) {
-
-        final DescribeDomainRequest
-            describeDomainRequest =
-            DescribeDomainRequest.builder().domainId(model.getDomainId()).build();
-        final DescribeDomainResponse describeDomainResponse = client.injectCredentialsAndInvokeV2(describeDomainRequest,
-                                                                                                  client.client()::describeDomain);
-        if (describeDomainResponse != null && describeDomainResponse.domain().domainStatus() == DomainStatus.ACTIVE) {
-            logger.log(String.format("%s [%s] has been stabilized.",
-                                     ResourceModel.TYPE_NAME,
-                                     model.getPrimaryIdentifier()));
-            return true;
-        }
-        return false;
     }
 }

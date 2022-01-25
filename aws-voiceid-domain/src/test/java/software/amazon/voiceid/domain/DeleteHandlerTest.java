@@ -63,11 +63,11 @@ public class DeleteHandlerTest extends AbstractTestBase {
     public void handleRequest_SimpleSuccess() {
         final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
 
+        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
+            .thenReturn(TestDataProvider.describeDomainResponse());
+
         when(voiceIdClient.deleteDomain(any(DeleteDomainRequest.class)))
             .thenReturn(TestDataProvider.deleteDomainResponse());
-
-        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
-            .thenReturn(TestDataProvider.describeDeletedDomainResponse());
 
         final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy,
                                                                                              request,
@@ -89,17 +89,32 @@ public class DeleteHandlerTest extends AbstractTestBase {
     public void handleRequest_NotFound() {
         final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
 
-        when(voiceIdClient.deleteDomain(any(DeleteDomainRequest.class)))
+        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
             .thenThrow(ResourceNotFoundException.class);
 
         assertThrows(CfnNotFoundException.class,
                      () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger));
-        verify(proxyClient.client()).deleteDomain(any(DeleteDomainRequest.class));
+        verify(proxyClient.client()).describeDomain(any(DescribeDomainRequest.class));
+    }
+
+    @Test
+    public void handleRequest_Suspended() {
+        final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
+
+        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
+            .thenReturn(TestDataProvider.describeDeletedDomainResponse());
+
+        assertThrows(CfnNotFoundException.class,
+                     () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger));
+        verify(proxyClient.client()).describeDomain(any(DescribeDomainRequest.class));
     }
 
     @Test
     public void handleRequest_Invalid() {
         final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
+
+        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
+            .thenReturn(TestDataProvider.describeDomainResponse());
 
         when(voiceIdClient.deleteDomain(any(DeleteDomainRequest.class)))
             .thenThrow(ValidationException.class);
@@ -112,6 +127,9 @@ public class DeleteHandlerTest extends AbstractTestBase {
     @Test
     public void handleRequest_Exception() {
         final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
+
+        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
+            .thenReturn(TestDataProvider.describeDomainResponse());
 
         when(voiceIdClient.deleteDomain(any(DeleteDomainRequest.class)))
             .thenThrow(VoiceIdException.class);

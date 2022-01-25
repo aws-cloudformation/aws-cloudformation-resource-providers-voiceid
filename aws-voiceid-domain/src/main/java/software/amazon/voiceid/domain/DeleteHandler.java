@@ -7,6 +7,7 @@ import software.amazon.awssdk.services.voiceid.model.DeleteDomainResponse;
 import software.amazon.awssdk.services.voiceid.model.DescribeDomainRequest;
 import software.amazon.awssdk.services.voiceid.model.DescribeDomainResponse;
 import software.amazon.awssdk.services.voiceid.model.DomainStatus;
+import software.amazon.cloudformation.exceptions.CfnNotFoundException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.ProgressEvent;
@@ -27,16 +28,40 @@ public class DeleteHandler extends BaseHandlerStd {
 
         return ProgressEvent.progress(request.getDesiredResourceState(), callbackContext)
             .then(progress ->
+                      proxy.initiate("AWS-VoiceID-Domain::PreDeletionCheck",
+                                     proxyClient,
+                                     progress.getResourceModel(),
+                                     progress.getCallbackContext())
+                          .translateToServiceRequest(Translator::translateToReadRequest)
+                          .makeServiceCall((awsRequest, client) -> preDeletionCheck(awsRequest, client))
+                          .progress()
+                 )
+            .then(progress ->
                       proxy.initiate("AWS-VoiceID-Domain::Delete",
                                      proxyClient,
                                      progress.getResourceModel(),
                                      progress.getCallbackContext())
                           .translateToServiceRequest(Translator::translateToDeleteRequest)
                           .makeServiceCall((awsRequest, client) -> deleteDomain(awsRequest, client))
-                          .stabilize((awsRequest, awsResponse, client, model, context) -> isStabilized(client, model))
                           .progress()
                  )
             .then(progress -> ProgressEvent.defaultSuccessHandler(null));
+    }
+
+    private DescribeDomainResponse preDeletionCheck(
+        final DescribeDomainRequest awsRequest,
+        final ProxyClient<VoiceIdClient> client) {
+
+        final DescribeDomainResponse awsResponse;
+        try {
+            awsResponse = client.injectCredentialsAndInvokeV2(awsRequest, client.client()::describeDomain);
+        } catch (final AwsServiceException e) {
+            throw Translator.translateToCfnException(e);
+        }
+        if (awsResponse.domain().domainStatus() == DomainStatus.SUSPENDED) {
+            throw new CfnNotFoundException(ResourceModel.TYPE_NAME, awsRequest.domainId());
+        }
+        return awsResponse;
     }
 
     private DeleteDomainResponse deleteDomain(
@@ -51,24 +76,5 @@ public class DeleteHandler extends BaseHandlerStd {
         }
         logger.log(String.format("%s successfully deleted.", ResourceModel.TYPE_NAME));
         return awsResponse;
-    }
-
-    private Boolean isStabilized(
-        final ProxyClient<VoiceIdClient> client,
-        final ResourceModel model) {
-
-        final DescribeDomainRequest
-            describeDomainRequest =
-            DescribeDomainRequest.builder().domainId(model.getDomainId()).build();
-        final DescribeDomainResponse describeDomainResponse = client.injectCredentialsAndInvokeV2(describeDomainRequest,
-                                                                                                  client.client()::describeDomain);
-        if (describeDomainResponse != null
-            && describeDomainResponse.domain().domainStatus() == DomainStatus.SUSPENDED) {
-            logger.log(String.format("%s [%s] has been stabilized.",
-                                     ResourceModel.TYPE_NAME,
-                                     model.getPrimaryIdentifier()));
-            return true;
-        }
-        return false;
     }
 }

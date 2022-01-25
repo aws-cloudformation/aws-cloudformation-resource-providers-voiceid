@@ -9,12 +9,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.voiceid.VoiceIdClient;
 import software.amazon.awssdk.services.voiceid.model.CreateDomainRequest;
 import software.amazon.awssdk.services.voiceid.model.DescribeDomainRequest;
-import software.amazon.awssdk.services.voiceid.model.ResourceNotFoundException;
 import software.amazon.awssdk.services.voiceid.model.ValidationException;
 import software.amazon.awssdk.services.voiceid.model.VoiceIdException;
 import software.amazon.cloudformation.exceptions.CfnGeneralServiceException;
 import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
-import software.amazon.cloudformation.exceptions.CfnNotFoundException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
@@ -83,18 +81,6 @@ public class CreateHandlerTest extends AbstractTestBase {
         assertThat(response.getResourceModels()).isNull();
         assertThat(response.getMessage()).isNull();
         assertThat(response.getErrorCode()).isNull();
-    }
-
-    @Test
-    public void handleRequest_NotFound() {
-        final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
-
-        when(voiceIdClient.createDomain(any(CreateDomainRequest.class)))
-            .thenThrow(ResourceNotFoundException.class);
-
-        assertThrows(CfnNotFoundException.class,
-                     () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger));
-        verify(proxyClient.client()).createDomain(any(CreateDomainRequest.class));
     }
 
     @Test
