@@ -92,6 +92,18 @@ public class ReadHandlerTest extends AbstractTestBase {
     }
 
     @Test
+    public void handleRequest_Suspended() {
+        final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
+
+        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
+            .thenReturn(TestDataProvider.describeDeletedDomainResponse());
+
+        assertThrows(CfnNotFoundException.class,
+                     () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger));
+        verify(proxyClient.client()).describeDomain(any(DescribeDomainRequest.class));
+    }
+
+    @Test
     public void handleRequest_Invalid() {
         final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
 

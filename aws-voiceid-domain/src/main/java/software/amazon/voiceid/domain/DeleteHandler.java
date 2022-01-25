@@ -4,10 +4,6 @@ import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.voiceid.VoiceIdClient;
 import software.amazon.awssdk.services.voiceid.model.DeleteDomainRequest;
 import software.amazon.awssdk.services.voiceid.model.DeleteDomainResponse;
-import software.amazon.awssdk.services.voiceid.model.DescribeDomainRequest;
-import software.amazon.awssdk.services.voiceid.model.DescribeDomainResponse;
-import software.amazon.awssdk.services.voiceid.model.DomainStatus;
-import software.amazon.cloudformation.exceptions.CfnNotFoundException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.ProgressEvent;
@@ -33,7 +29,7 @@ public class DeleteHandler extends BaseHandlerStd {
                                      progress.getResourceModel(),
                                      progress.getCallbackContext())
                           .translateToServiceRequest(Translator::translateToReadRequest)
-                          .makeServiceCall((awsRequest, client) -> preDeletionCheck(awsRequest, client))
+                          .makeServiceCall((awsRequest, client) -> describeDomain(awsRequest, client, logger))
                           .progress()
                  )
             .then(progress ->
@@ -46,22 +42,6 @@ public class DeleteHandler extends BaseHandlerStd {
                           .progress()
                  )
             .then(progress -> ProgressEvent.defaultSuccessHandler(null));
-    }
-
-    private DescribeDomainResponse preDeletionCheck(
-        final DescribeDomainRequest awsRequest,
-        final ProxyClient<VoiceIdClient> client) {
-
-        final DescribeDomainResponse awsResponse;
-        try {
-            awsResponse = client.injectCredentialsAndInvokeV2(awsRequest, client.client()::describeDomain);
-        } catch (final AwsServiceException e) {
-            throw Translator.translateToCfnException(e);
-        }
-        if (awsResponse.domain().domainStatus() == DomainStatus.SUSPENDED) {
-            throw new CfnNotFoundException(ResourceModel.TYPE_NAME, awsRequest.domainId());
-        }
-        return awsResponse;
     }
 
     private DeleteDomainResponse deleteDomain(
