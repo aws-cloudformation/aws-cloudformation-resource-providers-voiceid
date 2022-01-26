@@ -6,10 +6,13 @@ import software.amazon.awssdk.awscore.AwsResponse;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.voiceid.model.AccessDeniedException;
 import software.amazon.awssdk.services.voiceid.model.ConflictException;
+import software.amazon.awssdk.services.voiceid.model.CreateDomainRequest;
+import software.amazon.awssdk.services.voiceid.model.DeleteDomainRequest;
 import software.amazon.awssdk.services.voiceid.model.DescribeDomainRequest;
 import software.amazon.awssdk.services.voiceid.model.DescribeDomainResponse;
 import software.amazon.awssdk.services.voiceid.model.Domain;
 import software.amazon.awssdk.services.voiceid.model.ResourceNotFoundException;
+import software.amazon.awssdk.services.voiceid.model.ServerSideEncryptionConfiguration;
 import software.amazon.awssdk.services.voiceid.model.ServiceQuotaExceededException;
 import software.amazon.awssdk.services.voiceid.model.ThrottlingException;
 import software.amazon.awssdk.services.voiceid.model.ValidationException;
@@ -17,6 +20,7 @@ import software.amazon.awssdk.services.voiceid.model.VoiceIdException;
 import software.amazon.cloudformation.exceptions.BaseHandlerException;
 import software.amazon.cloudformation.exceptions.CfnAccessDeniedException;
 import software.amazon.cloudformation.exceptions.CfnGeneralServiceException;
+import software.amazon.cloudformation.exceptions.CfnInternalFailureException;
 import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
 import software.amazon.cloudformation.exceptions.CfnNotFoundException;
 import software.amazon.cloudformation.exceptions.CfnResourceConflictException;
@@ -41,17 +45,20 @@ import java.util.stream.Stream;
 public class Translator {
 
     /**
-     * Request to create a resource
+     * Request to create a domain
      *
      * @param model resource model
      *
-     * @return awsRequest the aws service request to create a resource
+     * @return awsRequest the voiceid service request to create a domain
      */
-    static AwsRequest translateToCreateRequest(final ResourceModel model) {
-        final AwsRequest awsRequest = null;
-        // TODO: construct a request
-        // e.g. https://github.com/aws-cloudformation/aws-cloudformation-resource-providers-logs/blob/2077c92299aeb9a68ae8f4418b5e932b12a8b186/aws-logs-loggroup/src/main/java/com/aws/logs/loggroup/Translator.java#L39-L43
-        return awsRequest;
+    static CreateDomainRequest translateToCreateRequest(final ResourceModel model) {
+        return CreateDomainRequest.builder()
+            .description(model.getDescription())
+            .name(model.getName())
+            .serverSideEncryptionConfiguration(ServerSideEncryptionConfiguration.builder()
+                                                   .kmsKeyId(model.getServerSideEncryptionConfiguration().getKmsKeyId())
+                                                   .build())
+            .build();
     }
 
     /**
@@ -85,17 +92,14 @@ public class Translator {
     }
 
     /**
-     * Request to delete a resource
+     * Request to delete a domain
      *
      * @param model resource model
      *
-     * @return awsRequest the aws service request to delete a resource
+     * @return awsRequest the voiceid service request to delete a domain
      */
-    static AwsRequest translateToDeleteRequest(final ResourceModel model) {
-        final AwsRequest awsRequest = null;
-        // TODO: construct a request
-        // e.g. https://github.com/aws-cloudformation/aws-cloudformation-resource-providers-logs/blob/2077c92299aeb9a68ae8f4418b5e932b12a8b186/aws-logs-loggroup/src/main/java/com/aws/logs/loggroup/Translator.java#L33-L37
-        return awsRequest;
+    static DeleteDomainRequest translateToDeleteRequest(final ResourceModel model) {
+        return DeleteDomainRequest.builder().domainId(model.getDomainId()).build();
     }
 
     /**
@@ -214,7 +218,7 @@ public class Translator {
         } else if (awsException instanceof VoiceIdException) {
             return new CfnGeneralServiceException(awsException);
         } else {
-            return new CfnGeneralServiceException(awsException);
+            return new CfnInternalFailureException(awsException);
         }
     }
 }
