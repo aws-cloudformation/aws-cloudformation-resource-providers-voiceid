@@ -1,8 +1,6 @@
 package software.amazon.voiceid.domain;
 
-import com.google.common.collect.Lists;
 import software.amazon.awssdk.awscore.AwsRequest;
-import software.amazon.awssdk.awscore.AwsResponse;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.voiceid.model.AccessDeniedException;
 import software.amazon.awssdk.services.voiceid.model.ConflictException;
@@ -11,6 +9,9 @@ import software.amazon.awssdk.services.voiceid.model.DeleteDomainRequest;
 import software.amazon.awssdk.services.voiceid.model.DescribeDomainRequest;
 import software.amazon.awssdk.services.voiceid.model.DescribeDomainResponse;
 import software.amazon.awssdk.services.voiceid.model.Domain;
+import software.amazon.awssdk.services.voiceid.model.DomainStatus;
+import software.amazon.awssdk.services.voiceid.model.ListDomainsRequest;
+import software.amazon.awssdk.services.voiceid.model.ListDomainsResponse;
 import software.amazon.awssdk.services.voiceid.model.ResourceNotFoundException;
 import software.amazon.awssdk.services.voiceid.model.ServerSideEncryptionConfiguration;
 import software.amazon.awssdk.services.voiceid.model.ServiceQuotaExceededException;
@@ -130,32 +131,28 @@ public class Translator {
     }
 
     /**
-     * Request to list resources
+     * Request to list domains
      *
-     * @param nextToken token passed to the aws service list resources request
+     * @param nextToken token passed to the voiceid service list domains request
      *
-     * @return awsRequest the aws service request to list resources within aws account
+     * @return awsRequest the voiceid service request to list domains within aws account
      */
-    static AwsRequest translateToListRequest(final String nextToken) {
-        final AwsRequest awsRequest = null;
-        // TODO: construct a request
-        // e.g. https://github.com/aws-cloudformation/aws-cloudformation-resource-providers-logs/blob/2077c92299aeb9a68ae8f4418b5e932b12a8b186/aws-logs-loggroup/src/main/java/com/aws/logs/loggroup/Translator.java#L26-L31
-        return awsRequest;
+    static ListDomainsRequest translateToListRequest(final String nextToken) {
+        return ListDomainsRequest.builder().nextToken(nextToken).build();
     }
 
     /**
-     * Translates resource objects from sdk into a resource model (primary identifier only)
+     * Translates domain objects from sdk into resource models (primary identifier only)
+     * Domains with a SUSPENDED status are filtered out to abide by the handler contract.
      *
-     * @param awsResponse the aws service describe resource response
+     * @param awsResponse the voiceid service list domains response
      *
      * @return list of resource models
      */
-    static List<ResourceModel> translateFromListRequest(final AwsResponse awsResponse) {
-        // e.g. https://github.com/aws-cloudformation/aws-cloudformation-resource-providers-logs/blob/2077c92299aeb9a68ae8f4418b5e932b12a8b186/aws-logs-loggroup/src/main/java/com/aws/logs/loggroup/Translator.java#L75-L82
-        return streamOfOrEmpty(Lists.newArrayList())
-            .map(resource -> ResourceModel.builder()
-                // include only primary identifier
-                .build())
+    static List<ResourceModel> translateFromListRequest(final ListDomainsResponse awsResponse) {
+        return streamOfOrEmpty(awsResponse.domainSummaries())
+            .filter(domainSummary -> domainSummary.domainStatus() == DomainStatus.ACTIVE)
+            .map(domainSummary -> ResourceModel.builder().domainId(domainSummary.domainId()).build())
             .collect(Collectors.toList());
     }
 
