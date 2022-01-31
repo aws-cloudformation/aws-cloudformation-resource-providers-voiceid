@@ -16,6 +16,7 @@ import software.amazon.awssdk.services.voiceid.model.ResourceNotFoundException;
 import software.amazon.awssdk.services.voiceid.model.ServerSideEncryptionConfiguration;
 import software.amazon.awssdk.services.voiceid.model.ServiceQuotaExceededException;
 import software.amazon.awssdk.services.voiceid.model.ThrottlingException;
+import software.amazon.awssdk.services.voiceid.model.UpdateDomainRequest;
 import software.amazon.awssdk.services.voiceid.model.ValidationException;
 import software.amazon.awssdk.services.voiceid.model.VoiceIdException;
 import software.amazon.cloudformation.exceptions.BaseHandlerException;
@@ -104,30 +105,21 @@ public class Translator {
     }
 
     /**
-     * Request to update properties of a previously created resource
+     * Request to update properties of a previously created domain
      *
      * @param model resource model
      *
-     * @return awsRequest the aws service request to modify a resource
+     * @return awsRequest the voiceid service request to modify a domain
      */
-    static AwsRequest translateToFirstUpdateRequest(final ResourceModel model) {
-        final AwsRequest awsRequest = null;
-        // TODO: construct a request
-        // e.g. https://github.com/aws-cloudformation/aws-cloudformation-resource-providers-logs/blob/2077c92299aeb9a68ae8f4418b5e932b12a8b186/aws-logs-loggroup/src/main/java/com/aws/logs/loggroup/Translator.java#L45-L50
-        return awsRequest;
-    }
-
-    /**
-     * Request to update some other properties that could not be provisioned through first update request
-     *
-     * @param model resource model
-     *
-     * @return awsRequest the aws service request to modify a resource
-     */
-    static AwsRequest translateToSecondUpdateRequest(final ResourceModel model) {
-        final AwsRequest awsRequest = null;
-        // TODO: construct a request
-        return awsRequest;
+    static UpdateDomainRequest translateToUpdateRequest(final ResourceModel model) {
+        return UpdateDomainRequest.builder()
+            .description(model.getDescription())
+            .domainId(model.getDomainId())
+            .name(model.getName())
+            .serverSideEncryptionConfiguration(ServerSideEncryptionConfiguration.builder()
+                                                   .kmsKeyId(model.getServerSideEncryptionConfiguration().getKmsKeyId())
+                                                   .build())
+            .build();
     }
 
     /**
