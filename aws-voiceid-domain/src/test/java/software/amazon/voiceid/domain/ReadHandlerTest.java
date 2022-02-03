@@ -8,12 +8,16 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.voiceid.VoiceIdClient;
 import software.amazon.awssdk.services.voiceid.model.DescribeDomainRequest;
+import software.amazon.awssdk.services.voiceid.model.ListTagsForResourceRequest;
+import software.amazon.awssdk.services.voiceid.model.ListTagsForResourceResponse;
 import software.amazon.awssdk.services.voiceid.model.ResourceNotFoundException;
+import software.amazon.awssdk.services.voiceid.model.ThrottlingException;
 import software.amazon.awssdk.services.voiceid.model.ValidationException;
 import software.amazon.awssdk.services.voiceid.model.VoiceIdException;
 import software.amazon.cloudformation.exceptions.CfnGeneralServiceException;
 import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
 import software.amazon.cloudformation.exceptions.CfnNotFoundException;
+import software.amazon.cloudformation.exceptions.CfnThrottlingException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
@@ -21,11 +25,11 @@ import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
 import java.time.Duration;
+import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -52,7 +56,6 @@ public class ReadHandlerTest extends AbstractTestBase {
 
     @AfterEach
     public void tear_down() {
-        verify(voiceIdClient, atLeastOnce()).serviceName();
         verifyNoMoreInteractions(voiceIdClient);
     }
 
@@ -62,6 +65,36 @@ public class ReadHandlerTest extends AbstractTestBase {
 
         when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
             .thenReturn(TestDataProvider.describeDomainResponse());
+
+        when(voiceIdClient.listTagsForResource(any(ListTagsForResourceRequest.class)))
+            .thenReturn(TestDataProvider.listTagsForResourceResponse());
+
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy,
+                                                                                             request,
+                                                                                             new CallbackContext(),
+                                                                                             proxyClient,
+                                                                                             logger);
+
+        verify(proxyClient.client()).describeDomain(any(DescribeDomainRequest.class));
+        assertThat(response).isNotNull();
+        assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
+        assertThat(response.getCallbackDelaySeconds()).isEqualTo(0);
+        assertThat(response.getResourceModel()).isEqualTo(request.getDesiredResourceState());
+        assertThat(response.getResourceModels()).isNull();
+        assertThat(response.getMessage()).isNull();
+        assertThat(response.getErrorCode()).isNull();
+    }
+
+    @Test
+    public void handleRequest_SimpleSuccessEmptyTags() {
+        final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
+        request.getDesiredResourceState().setTags(Collections.emptyList());
+
+        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
+            .thenReturn(TestDataProvider.describeDomainResponse());
+
+        when(voiceIdClient.listTagsForResource(any(ListTagsForResourceRequest.class)))
+            .thenReturn(ListTagsForResourceResponse.builder().build());
 
         final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy,
                                                                                              request,
@@ -111,6 +144,18 @@ public class ReadHandlerTest extends AbstractTestBase {
             .thenThrow(ValidationException.class);
 
         assertThrows(CfnInvalidRequestException.class,
+                     () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger));
+        verify(proxyClient.client()).describeDomain(any(DescribeDomainRequest.class));
+    }
+
+    @Test
+    public void handleRequest_Throttling() {
+        final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
+
+        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
+            .thenThrow(ThrottlingException.class);
+
+        assertThrows(CfnThrottlingException.class,
                      () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger));
         verify(proxyClient.client()).describeDomain(any(DescribeDomainRequest.class));
     }

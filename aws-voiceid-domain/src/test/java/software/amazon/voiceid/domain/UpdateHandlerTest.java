@@ -2,16 +2,24 @@ package software.amazon.voiceid.domain;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.voiceid.VoiceIdClient;
+import software.amazon.awssdk.services.voiceid.model.AccessDeniedException;
 import software.amazon.awssdk.services.voiceid.model.ConflictException;
 import software.amazon.awssdk.services.voiceid.model.DescribeDomainRequest;
+import software.amazon.awssdk.services.voiceid.model.ListTagsForResourceRequest;
+import software.amazon.awssdk.services.voiceid.model.TagResourceRequest;
+import software.amazon.awssdk.services.voiceid.model.TagResourceResponse;
+import software.amazon.awssdk.services.voiceid.model.UntagResourceRequest;
+import software.amazon.awssdk.services.voiceid.model.UntagResourceResponse;
 import software.amazon.awssdk.services.voiceid.model.UpdateDomainRequest;
 import software.amazon.awssdk.services.voiceid.model.ValidationException;
 import software.amazon.awssdk.services.voiceid.model.VoiceIdException;
+import software.amazon.cloudformation.exceptions.CfnAccessDeniedException;
 import software.amazon.cloudformation.exceptions.CfnGeneralServiceException;
 import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
 import software.amazon.cloudformation.exceptions.CfnNotFoundException;
@@ -23,12 +31,14 @@ import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
 import java.time.Duration;
+import java.util.HashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -64,11 +74,14 @@ public class UpdateHandlerTest extends AbstractTestBase {
     public void handleRequest_SimpleSuccess() {
         final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
 
+        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
+            .thenReturn(TestDataProvider.describeDomainResponse());
+
         when(voiceIdClient.updateDomain(any(UpdateDomainRequest.class)))
             .thenReturn(TestDataProvider.updateDomainResponse());
 
-        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
-            .thenReturn(TestDataProvider.describeDomainResponse());
+        when(voiceIdClient.listTagsForResource(any(ListTagsForResourceRequest.class)))
+            .thenReturn(TestDataProvider.listTagsForResourceResponse());
 
         final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy,
                                                                                              request,
@@ -84,6 +97,109 @@ public class UpdateHandlerTest extends AbstractTestBase {
         assertThat(response.getResourceModels()).isNull();
         assertThat(response.getMessage()).isNull();
         assertThat(response.getErrorCode()).isNull();
+    }
+
+    @Test
+    public void handleRequest_SuccessWithTagging() {
+        final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
+        request.setPreviousResourceTags(TestDataProvider.getTags());
+        request.setDesiredResourceTags(new HashMap<String, String>() {{
+            put("Key1", "Value1");
+            put("Key2", "Value2");
+        }});
+
+        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
+            .thenReturn(TestDataProvider.describeDomainResponse());
+
+        when(voiceIdClient.updateDomain(any(UpdateDomainRequest.class)))
+            .thenReturn(TestDataProvider.updateDomainResponse());
+
+        when(voiceIdClient.tagResource(any(TagResourceRequest.class)))
+            .thenReturn(TagResourceResponse.builder().build());
+
+        when(voiceIdClient.untagResource(any(UntagResourceRequest.class)))
+            .thenReturn(UntagResourceResponse.builder().build());
+
+        when(voiceIdClient.listTagsForResource(any(ListTagsForResourceRequest.class)))
+            .thenReturn(TestDataProvider.listTagsForResourceResponse());
+
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy,
+                                                                                             request,
+                                                                                             new CallbackContext(),
+                                                                                             proxyClient,
+                                                                                             logger);
+
+        verify(proxyClient.client()).updateDomain(any(UpdateDomainRequest.class));
+        verify(proxyClient.client()).tagResource(any(TagResourceRequest.class));
+        verify(proxyClient.client()).untagResource(any(UntagResourceRequest.class));
+        assertThat(response).isNotNull();
+        assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
+        assertThat(response.getCallbackDelaySeconds()).isEqualTo(0);
+        assertThat(response.getResourceModel()).isEqualTo(request.getDesiredResourceState());
+        assertThat(response.getResourceModels()).isNull();
+        assertThat(response.getMessage()).isNull();
+        assertThat(response.getErrorCode()).isNull();
+    }
+
+    @Test
+    public void handleRequest_TagException() {
+        final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
+
+        request.setDesiredResourceTags(TestDataProvider.getTags());
+
+        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
+            .thenReturn(TestDataProvider.describeDomainResponse());
+
+        when(voiceIdClient.updateDomain(any(UpdateDomainRequest.class)))
+            .thenReturn(TestDataProvider.updateDomainResponse());
+
+        when(voiceIdClient.tagResource(any(TagResourceRequest.class)))
+            .thenThrow(VoiceIdException.class);
+
+        assertThrows(CfnGeneralServiceException.class,
+                     () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger));
+        verify(proxyClient.client()).updateDomain(any(UpdateDomainRequest.class));
+    }
+
+    @Test
+    public void handleRequest_UntagException() {
+        final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
+
+        request.setPreviousResourceTags(TestDataProvider.getTags());
+
+        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
+            .thenReturn(TestDataProvider.describeDomainResponse());
+
+        when(voiceIdClient.updateDomain(any(UpdateDomainRequest.class)))
+            .thenReturn(TestDataProvider.updateDomainResponse());
+
+        when(voiceIdClient.untagResource(any(UntagResourceRequest.class)))
+            .thenThrow(VoiceIdException.class);
+
+        assertThrows(CfnGeneralServiceException.class,
+                     () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger));
+        verify(proxyClient.client()).updateDomain(any(UpdateDomainRequest.class));
+        verify(proxyClient.client(), never()).tagResource(any(TagResourceRequest.class));
+    }
+
+    @Test
+    public void handleRequest_TagAccessDenied() {
+        final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
+
+        request.setDesiredResourceTags(TestDataProvider.getTags());
+
+        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
+            .thenReturn(TestDataProvider.describeDomainResponse());
+
+        when(voiceIdClient.updateDomain(any(UpdateDomainRequest.class)))
+            .thenReturn(TestDataProvider.updateDomainResponse());
+
+        when(voiceIdClient.tagResource(any(TagResourceRequest.class)))
+            .thenThrow(AccessDeniedException.class);
+
+        assertThrows(CfnAccessDeniedException.class,
+                     () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger));
+        verify(proxyClient.client()).updateDomain(any(UpdateDomainRequest.class));
     }
 
     @Test

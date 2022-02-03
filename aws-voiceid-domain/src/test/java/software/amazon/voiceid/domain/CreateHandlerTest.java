@@ -6,13 +6,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.voiceid.VoiceIdClient;
 import software.amazon.awssdk.services.voiceid.model.CreateDomainRequest;
 import software.amazon.awssdk.services.voiceid.model.DescribeDomainRequest;
+import software.amazon.awssdk.services.voiceid.model.ListTagsForResourceRequest;
+import software.amazon.awssdk.services.voiceid.model.ServiceQuotaExceededException;
 import software.amazon.awssdk.services.voiceid.model.ValidationException;
 import software.amazon.awssdk.services.voiceid.model.VoiceIdException;
 import software.amazon.cloudformation.exceptions.CfnGeneralServiceException;
+import software.amazon.cloudformation.exceptions.CfnInternalFailureException;
 import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
+import software.amazon.cloudformation.exceptions.CfnServiceLimitExceededException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
@@ -20,6 +25,7 @@ import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
 import java.time.Duration;
+import java.util.HashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -67,6 +73,43 @@ public class CreateHandlerTest extends AbstractTestBase {
         when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
             .thenReturn(TestDataProvider.describeDomainResponse());
 
+        when(voiceIdClient.listTagsForResource(any(ListTagsForResourceRequest.class)))
+            .thenReturn(TestDataProvider.listTagsForResourceResponse());
+
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy,
+                                                                                             request,
+                                                                                             new CallbackContext(),
+                                                                                             proxyClient,
+                                                                                             logger);
+
+        verify(proxyClient.client()).createDomain(any(CreateDomainRequest.class));
+        assertThat(response).isNotNull();
+        assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
+        assertThat(response.getCallbackDelaySeconds()).isEqualTo(0);
+        assertThat(response.getResourceModel()).isEqualTo(request.getDesiredResourceState());
+        assertThat(response.getResourceModels()).isNull();
+        assertThat(response.getMessage()).isNull();
+        assertThat(response.getErrorCode()).isNull();
+    }
+
+    @Test
+    public void handleRequest_SuccessWithTagging() {
+        final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
+        request.setSystemTags(new HashMap<String, String>() {{
+            put("systemTagKey", "systemTagValue");
+            put("systemTagKey2", null);
+        }});
+        request.setDesiredResourceTags(TestDataProvider.getTags());
+
+        when(voiceIdClient.createDomain(any(CreateDomainRequest.class)))
+            .thenReturn(TestDataProvider.createDomainResponse());
+
+        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
+            .thenReturn(TestDataProvider.describeDomainResponse());
+
+        when(voiceIdClient.listTagsForResource(any(ListTagsForResourceRequest.class)))
+            .thenReturn(TestDataProvider.listTagsForResourceResponse());
+
         final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy,
                                                                                              request,
                                                                                              new CallbackContext(),
@@ -96,6 +139,18 @@ public class CreateHandlerTest extends AbstractTestBase {
     }
 
     @Test
+    public void handleRequest_QuotaExceeded() {
+        final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
+
+        when(voiceIdClient.createDomain(any(CreateDomainRequest.class)))
+            .thenThrow(ServiceQuotaExceededException.class);
+
+        assertThrows(CfnServiceLimitExceededException.class,
+                     () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger));
+        verify(proxyClient.client()).createDomain(any(CreateDomainRequest.class));
+    }
+
+    @Test
     public void handleRequest_Exception() {
         final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
 
@@ -103,6 +158,18 @@ public class CreateHandlerTest extends AbstractTestBase {
             .thenThrow(VoiceIdException.class);
 
         assertThrows(CfnGeneralServiceException.class,
+                     () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger));
+        verify(proxyClient.client()).createDomain(any(CreateDomainRequest.class));
+    }
+
+    @Test
+    public void handleRequest_InternalFailure() {
+        final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
+
+        when(voiceIdClient.createDomain(any(CreateDomainRequest.class)))
+            .thenThrow(AwsServiceException.class);
+
+        assertThrows(CfnInternalFailureException.class,
                      () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger));
         verify(proxyClient.client()).createDomain(any(CreateDomainRequest.class));
     }
