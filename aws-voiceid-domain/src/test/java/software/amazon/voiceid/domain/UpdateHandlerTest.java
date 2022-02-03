@@ -7,6 +7,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.voiceid.VoiceIdClient;
+import software.amazon.awssdk.services.voiceid.model.ConflictException;
+import software.amazon.awssdk.services.voiceid.model.DescribeDomainRequest;
+import software.amazon.awssdk.services.voiceid.model.UpdateDomainRequest;
+import software.amazon.awssdk.services.voiceid.model.ValidationException;
+import software.amazon.awssdk.services.voiceid.model.VoiceIdException;
+import software.amazon.cloudformation.exceptions.CfnGeneralServiceException;
+import software.amazon.cloudformation.exceptions.CfnInvalidRequestException;
+import software.amazon.cloudformation.exceptions.CfnNotFoundException;
+import software.amazon.cloudformation.exceptions.CfnResourceConflictException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
@@ -16,10 +25,13 @@ import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 public class UpdateHandlerTest extends AbstractTestBase {
@@ -32,6 +44,8 @@ public class UpdateHandlerTest extends AbstractTestBase {
 
     @Mock
     VoiceIdClient voiceIdClient;
+
+    final UpdateHandler handler = new UpdateHandler();
 
     @BeforeEach
     public void setup() {
@@ -46,18 +60,23 @@ public class UpdateHandlerTest extends AbstractTestBase {
         verifyNoMoreInteractions(voiceIdClient);
     }
 
-    //    @Test
+    @Test
     public void handleRequest_SimpleSuccess() {
-        final UpdateHandler handler = new UpdateHandler();
+        final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
 
-        final ResourceModel model = ResourceModel.builder().build();
+        when(voiceIdClient.updateDomain(any(UpdateDomainRequest.class)))
+            .thenReturn(TestDataProvider.updateDomainResponse());
 
-        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
-            .desiredResourceState(model)
-            .build();
+        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
+            .thenReturn(TestDataProvider.describeDomainResponse());
 
-        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger);
+        final ProgressEvent<ResourceModel, CallbackContext> response = handler.handleRequest(proxy,
+                                                                                             request,
+                                                                                             new CallbackContext(),
+                                                                                             proxyClient,
+                                                                                             logger);
 
+        verify(proxyClient.client()).updateDomain(any(UpdateDomainRequest.class));
         assertThat(response).isNotNull();
         assertThat(response.getStatus()).isEqualTo(OperationStatus.SUCCESS);
         assertThat(response.getCallbackDelaySeconds()).isEqualTo(0);
@@ -65,5 +84,62 @@ public class UpdateHandlerTest extends AbstractTestBase {
         assertThat(response.getResourceModels()).isNull();
         assertThat(response.getMessage()).isNull();
         assertThat(response.getErrorCode()).isNull();
+    }
+
+    @Test
+    public void handleRequest_Suspended() {
+        final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
+
+        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
+            .thenReturn(TestDataProvider.describeDeletedDomainResponse());
+
+        assertThrows(CfnNotFoundException.class,
+                     () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger));
+        verify(proxyClient.client()).describeDomain(any(DescribeDomainRequest.class));
+    }
+
+    @Test
+    public void handleRequest_Invalid() {
+        final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
+
+        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
+            .thenReturn(TestDataProvider.describeDomainResponse());
+
+        when(voiceIdClient.updateDomain(any(UpdateDomainRequest.class)))
+            .thenThrow(ValidationException.class);
+
+        assertThrows(CfnInvalidRequestException.class,
+                     () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger));
+        verify(proxyClient.client()).updateDomain(any(UpdateDomainRequest.class));
+    }
+
+    @Test
+    public void handleRequest_Conflict() {
+        final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
+
+        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
+            .thenReturn(TestDataProvider.describeDomainResponse());
+
+        when(voiceIdClient.updateDomain(any(UpdateDomainRequest.class)))
+            .thenThrow(ConflictException.class);
+
+        assertThrows(CfnResourceConflictException.class,
+                     () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger));
+        verify(proxyClient.client()).updateDomain(any(UpdateDomainRequest.class));
+    }
+
+    @Test
+    public void handleRequest_Exception() {
+        final ResourceHandlerRequest<ResourceModel> request = TestDataProvider.getRequest();
+
+        when(voiceIdClient.describeDomain(any(DescribeDomainRequest.class)))
+            .thenReturn(TestDataProvider.describeDomainResponse());
+
+        when(voiceIdClient.updateDomain(any(UpdateDomainRequest.class)))
+            .thenThrow(VoiceIdException.class);
+
+        assertThrows(CfnGeneralServiceException.class,
+                     () -> handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger));
+        verify(proxyClient.client()).updateDomain(any(UpdateDomainRequest.class));
     }
 }

@@ -6,6 +6,7 @@ import software.amazon.awssdk.services.voiceid.model.DescribeDomainResponse;
 import software.amazon.awssdk.services.voiceid.model.Domain;
 import software.amazon.awssdk.services.voiceid.model.DomainStatus;
 import software.amazon.awssdk.services.voiceid.model.DomainSummary;
+import software.amazon.awssdk.services.voiceid.model.UpdateDomainResponse;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
 import java.util.List;
@@ -68,6 +69,12 @@ public class TestDataProvider {
 
     protected static DeleteDomainResponse deleteDomainResponse() {
         return DeleteDomainResponse.builder().build();
+    }
+
+    protected static UpdateDomainResponse updateDomainResponse() {
+        return UpdateDomainResponse.builder()
+            .domain(Domain.builder().build())
+            .build();
     }
 
     protected static List<DomainSummary> getDomainSummaries() {
