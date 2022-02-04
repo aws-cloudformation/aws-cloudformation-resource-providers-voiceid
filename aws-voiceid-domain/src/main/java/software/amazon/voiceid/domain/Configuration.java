@@ -10,7 +10,9 @@ class Configuration extends BaseConfiguration {
     }
 
     /**
-     * Merges resource tags and stack tags in getDesiredResourceTags and getPreviousResourceTags
+     * This method overrides the BaseConfiguration method. resourceDefinedTags is called in the generated
+     * HandlerWrapper.java class to obtain the resource level tags. These tags are combined with stack tags and set
+     * in the ResourceHandlerRequest's desiredResourceTags and previousResourceTags
      */
     public Map<String, String> resourceDefinedTags(final ResourceModel resourceModel) {
         if (resourceModel.getTags() == null) {
