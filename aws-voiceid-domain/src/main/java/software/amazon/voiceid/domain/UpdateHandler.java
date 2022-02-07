@@ -5,6 +5,7 @@ import software.amazon.awssdk.services.voiceid.VoiceIdClient;
 import software.amazon.awssdk.services.voiceid.model.DescribeDomainResponse;
 import software.amazon.awssdk.services.voiceid.model.UpdateDomainRequest;
 import software.amazon.awssdk.services.voiceid.model.UpdateDomainResponse;
+import software.amazon.cloudformation.exceptions.CfnNotFoundException;
 import software.amazon.cloudformation.proxy.AmazonWebServicesClientProxy;
 import software.amazon.cloudformation.proxy.Logger;
 import software.amazon.cloudformation.proxy.ProgressEvent;
@@ -43,6 +44,9 @@ public class UpdateHandler extends BaseHandlerStd {
                                      progress.getCallbackContext())
                           .translateToServiceRequest(Translator::translateToReadRequest)
                           .makeServiceCall((awsRequest, client) -> {
+                              if (awsRequest.domainId() == null) {
+                                  throw new CfnNotFoundException(ResourceModel.TYPE_NAME, null);
+                              }
                               final DescribeDomainResponse describeDomainResponse = describeDomain(awsRequest,
                                                                                                    client,
                                                                                                    logger);
