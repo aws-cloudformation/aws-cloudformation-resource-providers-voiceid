@@ -28,7 +28,8 @@ public class CreateHandler extends BaseHandlerStd {
                                      proxyClient,
                                      progress.getResourceModel(),
                                      progress.getCallbackContext())
-                          .translateToServiceRequest(Translator::translateToCreateRequest)
+                          .translateToServiceRequest((model) -> Translator.translateToCreateRequest(
+                              model, TagHelper.generateTagsForCreate(request)))
                           .makeServiceCall((awsRequest, client) -> createDomain(awsRequest, client, request))
                           .progress()
                  )

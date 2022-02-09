@@ -1,6 +1,5 @@
 package software.amazon.voiceid.domain;
 
-import software.amazon.awssdk.awscore.AwsRequest;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.voiceid.model.AccessDeniedException;
 import software.amazon.awssdk.services.voiceid.model.ConflictException;
@@ -12,10 +11,13 @@ import software.amazon.awssdk.services.voiceid.model.Domain;
 import software.amazon.awssdk.services.voiceid.model.DomainStatus;
 import software.amazon.awssdk.services.voiceid.model.ListDomainsRequest;
 import software.amazon.awssdk.services.voiceid.model.ListDomainsResponse;
+import software.amazon.awssdk.services.voiceid.model.ListTagsForResourceRequest;
 import software.amazon.awssdk.services.voiceid.model.ResourceNotFoundException;
 import software.amazon.awssdk.services.voiceid.model.ServerSideEncryptionConfiguration;
 import software.amazon.awssdk.services.voiceid.model.ServiceQuotaExceededException;
+import software.amazon.awssdk.services.voiceid.model.TagResourceRequest;
 import software.amazon.awssdk.services.voiceid.model.ThrottlingException;
+import software.amazon.awssdk.services.voiceid.model.UntagResourceRequest;
 import software.amazon.awssdk.services.voiceid.model.UpdateDomainRequest;
 import software.amazon.awssdk.services.voiceid.model.ValidationException;
 import software.amazon.awssdk.services.voiceid.model.VoiceIdException;
@@ -53,13 +55,14 @@ public class Translator {
      *
      * @return awsRequest the voiceid service request to create a domain
      */
-    static CreateDomainRequest translateToCreateRequest(final ResourceModel model) {
+    static CreateDomainRequest translateToCreateRequest(final ResourceModel model, final Map<String, String> tags) {
         return CreateDomainRequest.builder()
             .description(model.getDescription())
             .name(model.getName())
             .serverSideEncryptionConfiguration(ServerSideEncryptionConfiguration.builder()
                                                    .kmsKeyId(model.getServerSideEncryptionConfiguration().getKmsKeyId())
                                                    .build())
+            .tags(TagHelper.convertToList(tags))
             .build();
     }
 
@@ -81,7 +84,7 @@ public class Translator {
      *
      * @return model resource model
      */
-    static ResourceModel translateFromReadResponse(final DescribeDomainResponse awsResponse) {
+    static ResourceModel translateFromReadResponse(final DescribeDomainResponse awsResponse, final List<Tag> tags) {
         final Domain domain = awsResponse.domain();
         return ResourceModel.builder()
             .description(domain.description())
@@ -90,6 +93,7 @@ public class Translator {
             .serverSideEncryptionConfiguration(software.amazon.voiceid.domain.ServerSideEncryptionConfiguration.builder()
                                                    .kmsKeyId(domain.serverSideEncryptionConfiguration().kmsKeyId())
                                                    .build())
+            .tags(tags)
             .build();
     }
 
@@ -155,31 +159,36 @@ public class Translator {
     }
 
     /**
-     * Request to add tags to a resource
+     * Request to list tags for a domain resource
      *
-     * @param model resource model
+     * @param resourceArn resource arn
      *
-     * @return awsRequest the aws service request to create a resource
+     * @return awsRequest the voice id service request to list tags for a domain
      */
-    static AwsRequest tagResourceRequest(final ResourceModel model, final Map<String, String> addedTags) {
-        final AwsRequest awsRequest = null;
-        // TODO: construct a request
-        // e.g. https://github.com/aws-cloudformation/aws-cloudformation-resource-providers-logs/blob/2077c92299aeb9a68ae8f4418b5e932b12a8b186/aws-logs-loggroup/src/main/java/com/aws/logs/loggroup/Translator.java#L39-L43
-        return awsRequest;
+    static ListTagsForResourceRequest translateToListTagsRequest(final String resourceArn) {
+        return ListTagsForResourceRequest.builder().resourceArn(resourceArn).build();
     }
 
     /**
-     * Request to add tags to a resource
+     * Request to add tags to a domain resource
      *
-     * @param model resource model
+     * @param resourceArn resource arn
      *
-     * @return awsRequest the aws service request to create a resource
+     * @return awsRequest the voice id service request to tag a domain
      */
-    static AwsRequest untagResourceRequest(final ResourceModel model, final Set<String> removedTags) {
-        final AwsRequest awsRequest = null;
-        // TODO: construct a request
-        // e.g. https://github.com/aws-cloudformation/aws-cloudformation-resource-providers-logs/blob/2077c92299aeb9a68ae8f4418b5e932b12a8b186/aws-logs-loggroup/src/main/java/com/aws/logs/loggroup/Translator.java#L39-L43
-        return awsRequest;
+    static TagResourceRequest translateToTagRequest(final String resourceArn, final Map<String, String> addedTags) {
+        return TagResourceRequest.builder().resourceArn(resourceArn).tags(TagHelper.convertToList(addedTags)).build();
+    }
+
+    /**
+     * Request to remove tags from a domain resource
+     *
+     * @param resourceArn resource arn
+     *
+     * @return awsRequest the voice id service request to untag a domain
+     */
+    static UntagResourceRequest translateToUntagRequest(final String resourceArn, final Set<String> removedTags) {
+        return UntagResourceRequest.builder().resourceArn(resourceArn).tagKeys(removedTags).build();
     }
 
     /**

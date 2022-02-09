@@ -63,6 +63,7 @@
     },
     "Tags": {
       "type": "array",
+      "insertionOrder": false,
       "items": {
         "$ref": "#/definitions/Tag"
       },
@@ -85,6 +86,13 @@
   "primaryIdentifier": [
     "/properties/DomainId"
   ],
+  "tagging": {
+    "taggable": true,
+    "tagOnCreate": true,
+    "tagUpdatable": true,
+    "cloudFormationSystemTags": true,
+    "tagProperty": "#/properties/Tags"
+  },
   "handlers": {
     "create": {
       "permissions": [
