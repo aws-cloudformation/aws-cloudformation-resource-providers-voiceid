@@ -7,6 +7,8 @@ import software.amazon.awssdk.services.voiceid.model.Domain;
 import software.amazon.awssdk.services.voiceid.model.DomainStatus;
 import software.amazon.awssdk.services.voiceid.model.DomainSummary;
 import software.amazon.awssdk.services.voiceid.model.ListTagsForResourceResponse;
+import software.amazon.awssdk.services.voiceid.model.ServerSideEncryptionUpdateDetails;
+import software.amazon.awssdk.services.voiceid.model.ServerSideEncryptionUpdateStatus;
 import software.amazon.awssdk.services.voiceid.model.UpdateDomainResponse;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
@@ -37,6 +39,19 @@ public class TestDataProvider {
             .serverSideEncryptionConfiguration(software.amazon.awssdk.services.voiceid.model.ServerSideEncryptionConfiguration.builder()
                                                    .kmsKeyId(KMS_KEY_ID)
                                                    .build())
+            .build();
+    }
+
+    protected static Domain getDomainWithUpdateDetails(final ServerSideEncryptionUpdateStatus updateStatus) {
+        return Domain.builder()
+            .description(DESCRIPTION)
+            .domainId(DOMAIN_ID)
+            .domainStatus(DomainStatus.ACTIVE)
+            .name(NAME)
+            .serverSideEncryptionConfiguration(software.amazon.awssdk.services.voiceid.model.ServerSideEncryptionConfiguration.builder()
+                                                   .kmsKeyId(KMS_KEY_ID)
+                                                   .build())
+            .serverSideEncryptionUpdateDetails(ServerSideEncryptionUpdateDetails.builder().updateStatus(updateStatus).build())
             .build();
     }
 
@@ -71,6 +86,30 @@ public class TestDataProvider {
     protected static DescribeDomainResponse describeDeletedDomainResponse() {
         return DescribeDomainResponse.builder()
             .domain(getDomain(DomainStatus.SUSPENDED))
+            .build();
+    }
+
+    protected static DescribeDomainResponse describeStabilizingDomainResponse() {
+        return DescribeDomainResponse.builder()
+            .domain(getDomainWithUpdateDetails(ServerSideEncryptionUpdateStatus.IN_PROGRESS))
+            .build();
+    }
+
+    protected static DescribeDomainResponse describeFailedStabilizationDomainResponse() {
+        return DescribeDomainResponse.builder()
+            .domain(getDomainWithUpdateDetails(ServerSideEncryptionUpdateStatus.FAILED))
+            .build();
+    }
+
+    protected static DescribeDomainResponse describeUnknownStabilizationDomainResponse() {
+        return DescribeDomainResponse.builder()
+            .domain(getDomainWithUpdateDetails(ServerSideEncryptionUpdateStatus.UNKNOWN_TO_SDK_VERSION))
+            .build();
+    }
+
+    protected static DescribeDomainResponse describeStabilizedDomainResponse() {
+        return DescribeDomainResponse.builder()
+            .domain(getDomainWithUpdateDetails(ServerSideEncryptionUpdateStatus.COMPLETED))
             .build();
     }
 

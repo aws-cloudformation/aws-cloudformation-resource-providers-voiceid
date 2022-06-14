@@ -2,7 +2,7 @@
     "artifact_type": "RESOURCE",
     "typeName": "AWS::VoiceID::Domain",
     "language": "java",
-    "runtime": "java8",
+    "runtime": "java11",
     "entrypoint": "software.amazon.voiceid.domain.HandlerWrapper::handleRequest",
     "testEntrypoint": "software.amazon.voiceid.domain.HandlerWrapper::testEntrypoint",
     "settings": {
